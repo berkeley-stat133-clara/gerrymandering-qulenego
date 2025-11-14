@@ -81,6 +81,5 @@ results_2025 <- tibble(
 )
 
 results_2025
-
 ```
 

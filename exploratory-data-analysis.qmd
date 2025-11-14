@@ -3,8 +3,6 @@ title: Exploratory Data Analysis
 format: typst
 ---
 
-#
-
 ```{r}
 library(tidyverse)
 ```
