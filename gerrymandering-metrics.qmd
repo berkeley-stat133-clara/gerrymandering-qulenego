@@ -61,6 +61,7 @@ dist_2025 <- df_2025 %>%
     share = dem / total
   )
 
+#
 mm_2025 <- mean(dist_2025$share, na.rm = TRUE) - median(dist_2025$share, na.rm = TRUE)
 
 dist_2025 <- dist_2025 %>%

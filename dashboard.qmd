@@ -7,6 +7,8 @@ library(sf)
 library(ggplot2)
 library(scales)
 
+##
+
 # load cleaned precinct data
 df <- read_csv("cleaned_g24_precinct_votes.csv")
 

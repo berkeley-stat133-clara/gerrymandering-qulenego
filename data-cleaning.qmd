@@ -1,8 +1,10 @@
 ---
 title: Data Cleaning
 format: typst
+
 ---
 
+##
 ```{r}
 list.files("data", recursive = TRUE)
 ```
