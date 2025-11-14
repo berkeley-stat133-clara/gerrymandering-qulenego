@@ -4,7 +4,6 @@ format: typst
 
 ---
 
-##
 ```{r}
 list.files("data", recursive = TRUE)
 ```
