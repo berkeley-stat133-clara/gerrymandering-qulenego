@@ -3,3 +3,67 @@ title: Data Cleaning
 format: typst
 ---
 
+```{r}
+list.files("data", recursive = TRUE)
+```
+
+
+```{r error=TRUE}
+library(tidyverse)
+library(readr)
+library(sf)
+
+# -------------------------------
+# load data
+# -------------------------------
+votes_file <- "data/g24_sov_by_g24_svprec.csv"
+df <- read_csv(votes_file)
+
+# clean column names
+clean_names <- function(x) {
+  x %>%
+    str_to_lower() %>%
+    str_replace_all("[^a-z0-9]+", "_") %>%
+    str_replace_all("_+", "_") %>%
+    str_replace("^_|_$", "")
+}
+
+colnames(df) <- clean_names(colnames(df))
+
+# detect precinct column automatically
+prec_col <- colnames(df)[str_detect(colnames(df), "svprec")][1]
+
+if(is.na(prec_col)) stop("❌ No precinct column found matching pattern 'svprec'.")
+
+# convert vote-related columns to numeric
+vote_cols <- df %>% select(contains("votes"), contains("total")) %>% names()
+
+df <- df %>%
+  mutate(across(all_of(vote_cols), ~ suppressWarnings(parse_number(as.character(.)))))
+
+# arrange and save cleaned file
+cleaned_df <- df %>%
+  arrange(across(all_of(prec_col))) %>%
+  relocate(all_of(prec_col), .before = everything())
+
+write_csv(cleaned_df, "cleaned_g24_precinct_votes.csv")
+
+cat("✔ Cleaned precinct vote file saved as: cleaned_g24_precinct_votes.csv\n")
+
+# -------------------------------
+# spatial processing setup (safe mode)
+# -------------------------------
+
+# we do NOT have shapefiles yet, so this is a placeholder
+cat("⚠ Spatial step skipped: required shapefiles not found in /data folder.\n")
+
+list(
+  file_cleaned = "cleaned_g24_precinct_votes.csv",
+  precinct_column_detected = prec_col,
+  vote_columns = vote_cols
+)
+
+
+```
+
+

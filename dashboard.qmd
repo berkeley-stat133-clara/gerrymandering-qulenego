@@ -2,4 +2,96 @@
 title: Dashboard
 format: dashboard
 ---
+library(tidyverse)
+library(sf)
+library(ggplot2)
+library(scales)
 
+# load cleaned precinct data
+df <- read_csv("cleaned_g24_precinct_votes.csv")
+
+# load shapefiles
+sr_geom <- st_read("data/shapefiles/sr_precincts/sr_precincts.shp", quiet=TRUE)
+ab604 <- st_read("data/shapefiles/ab604_proposed/ab604.shp", quiet=TRUE)
+
+# vote columns
+dem_cols <- names(df)[str_detect(names(df), regex("dem|democrat", ignore_case=TRUE))]
+rep_cols <- names(df)[str_detect(names(df), regex("rep|republican", ignore_case=TRUE))]
+
+# calculate observed 2024 metrics
+dist_2024 <- df %>%
+  group_by(district) %>%
+  summarise(
+    dem = sum(across(all_of(dem_cols)), na.rm=TRUE),
+    rep = sum(across(all_of(rep_cols)), na.rm=TRUE)
+  ) %>%
+  mutate(
+    total = dem + rep,
+    share = dem / total,
+    d_waste = if_else(dem > rep, dem - total/2, dem),
+    r_waste = if_else(rep > dem, rep - total/2, rep)
+  )
+
+results_2024 <- tibble(
+  districts = nrow(dist_2024),
+  mean_share = mean(dist_2024$share),
+  median_share = median(dist_2024$share),
+  mean_median = mean(dist_2024$share) - median(dist_2024$share),
+  efficiency_gap = (sum(dist_2024$d_waste) - sum(dist_2024$r_waste)) / sum(dist_2024$total)
+)
+
+# assign precincts to ab604 districts
+ints <- st_intersection(
+  sr_geom %>% select(sr_prec=1),
+  ab604 %>% select(district=1)
+)
+
+ints <- ints %>%
+  mutate(piece_area = st_area(geometry)) %>%
+  group_by(sr_prec) %>%
+  mutate(total_prec_area = sum(piece_area),
+         frac = as.numeric(piece_area / total_prec_area)) %>%
+  ungroup() %>%
+  left_join(df %>% select(sr_prec, all_of(c(dem_cols, rep_cols))), by="sr_prec") %>%
+  mutate(
+    dem_alloc = round(frac * dem_votes),
+    rep_alloc = round(frac * rep_votes)
+  )
+
+dist_ab604 <- ints %>%
+  st_set_geometry(NULL) %>%
+  group_by(district) %>%
+  summarise(dem = sum(dem_alloc), rep = sum(rep_alloc), total = dem + rep) %>%
+  mutate(
+    share = dem / total,
+    d_waste = if_else(dem > rep, dem - total/2, dem),
+    r_waste = if_else(rep > dem, rep - total/2, rep),
+    winner = if_else(dem > rep, "d", "r")
+  )
+
+results_ab604 <- tibble(
+  districts = nrow(dist_ab604),
+  mean_share = mean(dist_ab604$share),
+  median_share = median(dist_ab604$share),
+  mean_median = mean(dist_ab604$share) - median(dist_ab604$share),
+  efficiency_gap = (sum(dist_ab604$d_waste) - sum(dist_ab604$r_waste)) / sum(dist_ab604$total)
+)
+
+# merge results with shapefiles for mapping
+map_2024 <- sr_geom %>%
+  left_join(df %>% group_by(district) %>% summarise(share = sum(dem_votes)/sum(total_votes)), by="district")
+
+map_ab604 <- ab604 %>%
+  left_join(dist_ab604 %>% select(district, share), by="district")
+
+# plot observed map
+ggplot(map_2024) +
+  geom_sf(aes(fill=share)) +
+  scale_fill_gradient2(low="red", mid="white", high="blue", midpoint=0.5, labels=percent) +
+  ggtitle("observed 2024 election results")
+
+# plot hypothetical map
+ggplot(map_ab604) +
+  geom_sf(aes(fill=share)) +
+  scale_fill_gradient2(low="red", mid="white", high="blue", midpoint=0.5, labels=percent) +
+  ggtitle("hypothetical 2024 election (ab 604 map)")

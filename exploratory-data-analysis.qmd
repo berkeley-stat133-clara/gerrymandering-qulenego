@@ -3,26 +3,108 @@ title: Exploratory Data Analysis
 format: typst
 ---
 
+
+
+```{r}
+library(tidyverse)
+```
+
+# data
+
+```{r error=TRUE}
+df <- read_csv("cleaned_g24_precinct_votes.csv")
+
+glimpse(df)
+```
+
 ### Question 1
 
-Put your question here.
+What is the distribution of precinct sizes?
 
 ### Answer 1
 
-Put your answer here.
+```{r error=TRUE}
+
+numeric_cols <- df %>% select(where(is.numeric))
+
+# choose the numeric column with highest total sum (likely total votes)
+total_col <- numeric_cols %>%
+  summarise(across(everything(), sum, na.rm = TRUE)) %>%
+  pivot_longer(cols = everything(), names_to = "col", values_to = "total") %>%
+  arrange(desc(total)) %>%
+  pull(col) %>%
+  first()
+
+total_col
+
+summary_stats <- df %>%
+summarise(
+min_votes = min(.data[[total_col]], na.rm = TRUE),
+median_votes = median(.data[[total_col]], na.rm = TRUE),
+mean_votes = mean(.data[[total_col]], na.rm = TRUE),
+max_votes = max(.data[[total_col]], na.rm = TRUE)
+)
+
+summary_stats
+
+df %>%
+ggplot(aes(x = .data[[total_col]])) +
+geom_histogram(bins = 40) +
+labs(
+title = "Distribution of Total Votes per Precinct",
+x = "Total Votes",
+y = "Count of Precincts"
+)
+
+
+```
+
 
 ### Question 2
 
-Put your question here.
+Which precincts had the closest races?
 
 ### Answer 2
 
-Put your answer here.
+```{r error=TRUE}
+vote_cols <- df %>%
+select(contains("votes")) %>%
+names()
+
+closest <- df %>%
+rowwise() %>%
+mutate(
+sorted_votes = sort(c_across(all_of(vote_cols)), decreasing = TRUE),
+margin = sorted_votes[1] - sorted_votes[2]
+) %>%
+ungroup() %>%
+arrange(margin)
+
+head(closest, 10)
+```
+
 
 ### Question 3
 
-Put your question here.
+Compare precinct-level totals with district totals
 
 ### Answer 3
 
-Put your answer here.
+
+```{r error=TRUE}
+library(readxl)
+library(dplyr)
+
+df <- read.csv("cleaned_g24_precinct_votes.csv")
+district_results <- read_excel("data/g24-results-by-district.xlsx")
+
+out <- list(
+  precinct_preview = head(df),
+  district_preview = head(district_results),
+  precinct_rows = nrow(df),
+  district_rows = nrow(district_results)
+)
+
+out
+
+```

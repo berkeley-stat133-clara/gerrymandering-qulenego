@@ -5,7 +5,80 @@ format: typst
 
 ### 2024 Election Results and the 2024 District Map
 
+```{r}
+library(tidyverse)
+
+df <- read_csv("cleaned_g24_precinct_votes.csv")
+
+dist <- df %>%
+  group_by(cddist) %>%
+  summarise(
+    dem = sum(demvote, na.rm = TRUE),
+    rep = sum(repvote, na.rm = TRUE)
+  ) %>%
+  mutate(
+    total = dem + rep,
+    share = dem / total
+  )
+
+mm <- mean(dist$share, na.rm = TRUE) - median(dist$share, na.rm = TRUE)
+
+dist <- dist %>%
+  mutate(
+    d_waste = if_else(dem > rep, dem - total/2, dem),
+    r_waste = if_else(rep > dem, rep - total/2, rep)
+  )
+
+eg <- (sum(dist$d_waste) - sum(dist$r_waste)) / sum(dist$total)
+
+results_2024 <- tibble(
+  districts = nrow(dist),
+  mean_share = mean(dist$share),
+  median_share = median(dist$share),
+  mean_median = mm,
+  efficiency_gap = eg
+)
+
+results_2024
+```
+
 
 
 ### 2024 Election Results and the proposed 2025 District Map
+
+```{r}
+df_2025 <- df %>%
+  mutate(district = addist)
+
+dist_2025 <- df_2025 %>%
+  group_by(district) %>%
+  summarise(
+    dem = sum(demvote, na.rm = TRUE),
+    rep = sum(repvote, na.rm = TRUE)
+  ) %>%
+  mutate(
+    total = dem + rep,
+    share = dem / total
+  )
+
+mm_2025 <- mean(dist_2025$share, na.rm = TRUE) - median(dist_2025$share, na.rm = TRUE)
+
+dist_2025 <- dist_2025 %>%
+  mutate(
+    d_waste = if_else(dem > rep, dem - total/2, dem),
+    r_waste = if_else(rep > dem, rep - total/2, rep)
+  )
+
+eg_2025 <- (sum(dist_2025$d_waste) - sum(dist_2025$r_waste)) / sum(dist_2025$total)
+
+results_2025 <- tibble(
+  districts = nrow(dist_2025),
+  mean_share = mean(dist_2025$share),
+  median_share = median(dist_2025$share),
+  mean_median = mm_2025,
+  efficiency_gap = eg_2025
+)
+
+results_2025
+```
 
